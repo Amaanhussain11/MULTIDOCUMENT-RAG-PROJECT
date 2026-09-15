@@ -1,0 +1,46 @@
+name: CI / PR Quality & Test Checks
+
+on:
+  pull_request:
+    branches: [ dev, Dev, main ]
+  push:
+    branches: [ dev, Dev, main ]
+
+jobs:
+  lint-and-test:
+    name: Code Quality & Automated Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Set up Python 3.12
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      # 3. Install dependencies & test tools
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest pytest-asyncio
+          if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
+
+      # 4. Run linter and formatting checks
+      - name: Run Linter (Ruff)
+        run: |
+          ruff check backend/
+
+      # 5. Run automated test suite
+      - name: Run Test Suite
+        env:
+          GEMINI_API_KEY: "mock_ci_key"
+          QDRANT_URL: ":memory:"
+        run: |
+          pytest -v backend/tests
