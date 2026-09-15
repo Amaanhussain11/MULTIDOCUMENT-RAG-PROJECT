@@ -2,23 +2,24 @@
 
 import io
 from pathlib import Path
-from typing import List
+
 import docx
+
 from backend.app.parsers.base_parser import BaseParser, ParsedPage
 
 
 class DOCXParser(BaseParser):
     """Parses DOCX documents into paragraphs/tables."""
 
-    def parse_file(self, file_path: Path) -> List[ParsedPage]:
+    def parse_file(self, file_path: Path) -> list[ParsedPage]:
         with open(file_path, "rb") as f:
             return self.parse_bytes(f.read(), file_path.name)
 
-    def parse_bytes(self, content: bytes, filename: str) -> List[ParsedPage]:
+    def parse_bytes(self, content: bytes, filename: str) -> list[ParsedPage]:
         stream = io.BytesIO(content)
         doc = docx.Document(stream)
 
-        text_parts: List[str] = []
+        text_parts: list[str] = []
         for para in doc.paragraphs:
             if para.text.strip():
                 text_parts.append(para.text)

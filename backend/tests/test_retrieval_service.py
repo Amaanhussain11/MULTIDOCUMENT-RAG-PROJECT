@@ -1,6 +1,7 @@
 """Unit and integration tests for the RetrievalService and query pipeline."""
 
 import pytest
+
 from backend.app.schemas.document import DocumentChunk
 from backend.app.services.embedding_service import EmbeddingService
 from backend.app.services.qdrant_service import QdrantService
@@ -51,7 +52,7 @@ def test_empty_question_returns_empty_context(test_setup):
 
 
 def test_multi_document_and_user_isolation(test_setup):
-    qdrant, _, retrieval, vec_a, vec_b, _ = test_setup
+    qdrant, _, retrieval, vec_a, _, _ = test_setup
 
     # User 1: Doc 1
     chunks_u1_d1 = [

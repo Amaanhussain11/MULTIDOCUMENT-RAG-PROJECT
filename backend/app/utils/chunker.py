@@ -1,8 +1,7 @@
 """Token-aware text chunking with metadata preservation."""
 
 import re
-import uuid
-from typing import List, Optional
+
 from backend.app.core.config import settings
 from backend.app.parsers.base_parser import ParsedPage
 from backend.app.schemas.document import DocumentChunk
@@ -23,11 +22,11 @@ def count_tokens(text: str) -> int:
     return max(1, int(words * 1.33))
 
 
-def split_into_sentences(text: str) -> List[str]:
+def split_into_sentences(text: str) -> list[str]:
     """Split text into sentences while retaining punctuation and paragraphs."""
     # Split on paragraph breaks first
     paragraphs = text.split("\n\n")
-    sentences: List[str] = []
+    sentences: list[str] = []
     
     for p in paragraphs:
         p = p.strip()
@@ -44,12 +43,12 @@ def split_into_sentences(text: str) -> List[str]:
 
 
 def create_chunks(
-    pages: List[ParsedPage],
+    pages: list[ParsedPage],
     document_id: str,
     user_id: str,
-    chunk_size: Optional[int] = None,
-    chunk_overlap: Optional[int] = None,
-) -> List[DocumentChunk]:
+    chunk_size: int | None = None,
+    chunk_overlap: int | None = None,
+) -> list[DocumentChunk]:
     """
     Split parsed pages into chunks adhering to token size and overlap limits.
     
@@ -59,7 +58,7 @@ def create_chunks(
     target_overlap = chunk_overlap or settings.CHUNK_OVERLAP
 
     # Collect sentence units with their originating page numbers
-    units: List[dict] = []
+    units: list[dict] = []
     for page in pages:
         cleaned_page_text = page.text.strip()
         if not cleaned_page_text:
@@ -75,7 +74,7 @@ def create_chunks(
     if not units:
         return []
 
-    chunks: List[DocumentChunk] = []
+    chunks: list[DocumentChunk] = []
     chunk_index = 0
     start_idx = 0
     n = len(units)

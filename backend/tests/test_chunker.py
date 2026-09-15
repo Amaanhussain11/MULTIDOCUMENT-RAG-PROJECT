@@ -1,7 +1,7 @@
 """Tests for token-aware chunking."""
 
 from backend.app.parsers.base_parser import ParsedPage
-from backend.app.utils.chunker import create_chunks, count_tokens
+from backend.app.utils.chunker import count_tokens, create_chunks
 
 
 def test_count_tokens_returns_positive():
