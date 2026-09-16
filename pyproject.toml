@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "SIM"]
+ignore = [
+    "SIM105",  # contextlib.suppress
+    "E501",    # line too long
+    "UP042",   # str, Enum inheritance
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/scripts/*" = ["E402"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests"]
