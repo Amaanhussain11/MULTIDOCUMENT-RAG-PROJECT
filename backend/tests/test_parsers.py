@@ -1,7 +1,8 @@
 """Tests for document parsers."""
 
 from pathlib import Path
-from backend.app.parsers import get_parser, PDFParser, DOCXParser, TXTParser
+
+from backend.app.parsers import TXTParser, get_parser
 
 
 def test_txt_parser(tmp_path: Path):

@@ -1,11 +1,13 @@
 """Tests for document validation."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from backend.app.utils.validator import (
     DocumentValidationError,
-    validate_document_file,
     validate_document_bytes,
+    validate_document_file,
 )
 
 

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -30,7 +30,7 @@ class DocumentChunk(BaseModel):
     user_id: str
     chunk_index: int
     text: str
-    page_number: Optional[int] = None
+    page_number: int | None = None
 
 
 class QdrantPayload(BaseModel):
@@ -39,7 +39,7 @@ class QdrantPayload(BaseModel):
     document_name: str
     chunk_id: str
     chunk_index: int
-    page_number: Optional[int] = None
+    page_number: int | None = None
     text: str
 
 
@@ -50,4 +50,4 @@ class IngestionResult(BaseModel):
     status: DocumentStatus
     chunk_count: int = 0
     total_tokens: int = 0
-    error: Optional[str] = None
+    error: str | None = None

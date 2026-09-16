@@ -1,7 +1,8 @@
 """Retrieval service orchestrating query embedding, semantic search, filtering, and context construction."""
 
 import logging
-from typing import Callable, List, Optional
+from collections.abc import Callable
+
 from backend.app.core.config import settings
 from backend.app.schemas.query import (
     ConstructedContext,
@@ -26,8 +27,8 @@ class RetrievalService:
 
     def __init__(
         self,
-        embedding_service: Optional[EmbeddingService] = None,
-        qdrant_service: Optional[QdrantService] = None,
+        embedding_service: EmbeddingService | None = None,
+        qdrant_service: QdrantService | None = None,
     ):
         self.embedding_service = embedding_service or EmbeddingService()
         self.qdrant_service = qdrant_service or QdrantService()
@@ -36,10 +37,10 @@ class RetrievalService:
         self,
         question: str,
         user_id: str,
-        document_id: Optional[str] = None,
-        top_k: Optional[int] = None,
-        similarity_threshold: Optional[float] = None,
-        on_step: Optional[Callable[[str, str], None]] = None,
+        document_id: str | None = None,
+        top_k: int | None = None,
+        similarity_threshold: float | None = None,
+        on_step: Callable[[str, str], None] | None = None,
     ) -> ConstructedContext:
         """
         Execute the query processing pipeline to retrieve relevant chunks and construct context.
@@ -131,8 +132,8 @@ class RetrievalService:
         )
 
     def _construct_context(
-        self, chunks: List[RetrievedChunk]
-    ) -> tuple[str, List[SourceReference]]:
+        self, chunks: list[RetrievedChunk]
+    ) -> tuple[str, list[SourceReference]]:
         """
         Convert retrieved chunks into structured context adhering to Section 5.8:
 
@@ -145,8 +146,8 @@ class RetrievalService:
         if not chunks:
             return "", []
 
-        context_blocks: List[str] = []
-        sources: List[SourceReference] = []
+        context_blocks: list[str] = []
+        sources: list[SourceReference] = []
         seen_sources = set()
 
         for chunk in chunks:

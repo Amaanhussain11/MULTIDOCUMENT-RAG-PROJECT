@@ -1,6 +1,7 @@
 """Integration tests for chat RAG query route."""
 
 from unittest.mock import MagicMock
+
 import pytest
 from fastapi.testclient import TestClient
 

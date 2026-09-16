@@ -3,7 +3,6 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import List
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 
@@ -32,9 +31,9 @@ def get_qdrant_service() -> QdrantService:
 # as proof of identity in production. Replace this header extraction with a proper JWT/session authorization layer.
 
 
-@router.post("/upload", response_model=List[IngestionResult])
+@router.post("/upload", response_model=list[IngestionResult])
 async def upload_documents(
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     user_id: str = Header(default="test_user_001", alias="X-User-Id"),
     service: DocumentService = Depends(get_document_service),
 ):
@@ -45,7 +44,7 @@ async def upload_documents(
         raise HTTPException(status_code=400, detail="No files provided for upload.")
 
     temp_dir = tempfile.mkdtemp(prefix="rag_upload_")
-    temp_paths: List[Path] = []
+    temp_paths: list[Path] = []
     try:
         for file in files:
             safe_filename = Path(file.filename or "upload.tmp").name
@@ -71,8 +70,8 @@ async def upload_documents(
                 pass
 
 
-@router.get("", response_model=List[Document])
-@router.get("/", response_model=List[Document], include_in_schema=False)
+@router.get("", response_model=list[Document])
+@router.get("/", response_model=list[Document], include_in_schema=False)
 async def list_documents(
     user_id: str = Header(default="test_user_001", alias="X-User-Id"),
     service: QdrantService = Depends(get_qdrant_service),

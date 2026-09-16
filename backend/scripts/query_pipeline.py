@@ -9,7 +9,6 @@ project_root = Path(__file__).resolve().parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from backend.app.core.config import settings
 from backend.app.services.embedding_service import EmbeddingService
 from backend.app.services.qdrant_service import QdrantService
 from backend.app.services.retrieval_service import RetrievalService

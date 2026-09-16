@@ -1,19 +1,19 @@
 import logging
 import uuid
 from pathlib import Path
-from typing import List, Optional
+
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
+
 from backend.app.core.config import settings
 from backend.app.schemas.document import Document, DocumentChunk, DocumentStatus, QdrantPayload
 from backend.app.schemas.query import RetrievedChunk
 
-
 logger = logging.getLogger(__name__)
 
 
-_shared_disk_client: Optional[QdrantClient] = None
-_shared_memory_client: Optional[QdrantClient] = None
+_shared_disk_client: QdrantClient | None = None
+_shared_memory_client: QdrantClient | None = None
 _remote_connection_failed: bool = False
 
 
@@ -22,10 +22,10 @@ class QdrantService:
 
     def __init__(
         self,
-        url: Optional[str] = None,
-        api_key: Optional[str] = None,
-        collection_name: Optional[str] = None,
-        client: Optional[QdrantClient] = None,
+        url: str | None = None,
+        api_key: str | None = None,
+        collection_name: str | None = None,
+        client: QdrantClient | None = None,
     ):
         self.url = url or settings.QDRANT_URL
         self.api_key = api_key or settings.QDRANT_API_KEY
@@ -121,8 +121,8 @@ class QdrantService:
 
     def upsert_chunks(
         self,
-        chunks: List[DocumentChunk],
-        embeddings: List[List[float]],
+        chunks: list[DocumentChunk],
+        embeddings: list[list[float]],
         document_name: str,
     ) -> int:
         """
@@ -148,7 +148,7 @@ class QdrantService:
         vector_dim = len(embeddings[0])
         self.ensure_collection(vector_size=vector_dim)
 
-        points: List[qmodels.PointStruct] = []
+        points: list[qmodels.PointStruct] = []
         for chunk, vector in zip(chunks, embeddings):
             # Deterministic UUID based on chunk_id so upserts are idempotent
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk.chunk_id))
@@ -203,12 +203,12 @@ class QdrantService:
 
     def search_chunks(
         self,
-        query_vector: List[float],
+        query_vector: list[float],
         user_id: str,
-        document_id: Optional[str] = None,
+        document_id: str | None = None,
         top_k: int = 5,
-        score_threshold: Optional[float] = None,
-    ) -> List[RetrievedChunk]:
+        score_threshold: float | None = None,
+    ) -> list[RetrievedChunk]:
         """
         Search for the most similar chunks in Qdrant with mandatory user isolation.
 
@@ -266,7 +266,7 @@ class QdrantService:
         else:
             raise RuntimeError("QdrantClient has neither query_points nor search method.")
 
-        retrieved: List[RetrievedChunk] = []
+        retrieved: list[RetrievedChunk] = []
         for point in scored_points:
             payload = point.payload or {}
             retrieved.append(
@@ -283,7 +283,7 @@ class QdrantService:
 
         return retrieved
 
-    def list_user_documents(self, user_id: str) -> List[Document]:
+    def list_user_documents(self, user_id: str) -> list[Document]:
         """
         Scan payload metadata in Qdrant to list all distinct documents belonging to a user.
         """
@@ -333,7 +333,7 @@ class QdrantService:
 
         return list(docs_map.values())
 
-    def get_user_document(self, user_id: str, document_id: str) -> Optional[Document]:
+    def get_user_document(self, user_id: str, document_id: str) -> Document | None:
         """
         Retrieve document metadata for a single document ID under a user.
         """

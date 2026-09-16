@@ -2,9 +2,9 @@
 
 import logging
 import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Callable, List, Optional
 
 from backend.app.core.config import settings
 from backend.app.parsers import get_parser
@@ -34,8 +34,8 @@ class DocumentService:
 
     def __init__(
         self,
-        embedding_service: Optional[EmbeddingService] = None,
-        qdrant_service: Optional[QdrantService] = None,
+        embedding_service: EmbeddingService | None = None,
+        qdrant_service: QdrantService | None = None,
     ):
         self.embedding_service = embedding_service or EmbeddingService()
         self.qdrant_service = qdrant_service or QdrantService()
@@ -44,8 +44,8 @@ class DocumentService:
         self,
         file_path: Path,
         user_id: str,
-        document_id: Optional[str] = None,
-        on_step: Optional[Callable[[str, str], None]] = None,
+        document_id: str | None = None,
+        on_step: Callable[[str, str], None] | None = None,
     ) -> IngestionResult:
         """
         Execute the 7-step ingestion pipeline for a single local file.
@@ -151,15 +151,15 @@ class DocumentService:
 
     def ingest_files(
         self,
-        file_paths: List[Path],
+        file_paths: list[Path],
         user_id: str,
         max_workers: int = 3,
-        on_step: Optional[Callable[[str, str], None]] = None,
-    ) -> List[IngestionResult]:
+        on_step: Callable[[str, str], None] | None = None,
+    ) -> list[IngestionResult]:
         """
         Concurrently ingest multiple documents with bounded concurrency and partial failure tolerance.
         """
-        results: List[IngestionResult] = []
+        results: list[IngestionResult] = []
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_file = {
                 executor.submit(self.ingest_file, path, user_id, None, on_step): path

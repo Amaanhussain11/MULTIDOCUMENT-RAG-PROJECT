@@ -2,7 +2,6 @@
 
 import logging
 import time
-from typing import List, Optional
 
 from google import genai
 from google.genai import errors
@@ -16,14 +15,14 @@ logger = logging.getLogger(__name__)
 class GenerationService:
     """Service responsible for generating grounded answers via Gemini LLM."""
 
-    def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
+    def __init__(self, api_key: str | None = None, model_name: str | None = None):
         self.api_key = api_key or settings.GEMINI_API_KEY
         self.model_name = (
             model_name
             or getattr(settings, "GEMINI_LLM_MODEL", None)
             or getattr(settings, "GEMINI_GENERATION_MODEL", "gemini-3.7-flash")
         )
-        self._client: Optional[genai.Client] = None
+        self._client: genai.Client | None = None
 
     @property
     def client(self) -> genai.Client:
@@ -38,7 +37,7 @@ class GenerationService:
         self,
         question: str,
         context: str,
-        sources: Optional[List[SourceReference]] = None,
+        sources: list[SourceReference] | None = None,
         max_retries: int = 3,
     ) -> GeneratedAnswer:
         """

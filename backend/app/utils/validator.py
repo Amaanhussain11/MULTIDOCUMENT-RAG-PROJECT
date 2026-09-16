@@ -1,7 +1,7 @@
 """Validation utility for uploaded documents."""
 
 from pathlib import Path
-from typing import Optional
+
 from backend.app.core.config import settings
 
 
@@ -21,7 +21,7 @@ class DocumentValidationError(Exception):
         }
 
 
-def validate_document_file(file_path: Path, max_size_mb: Optional[int] = None) -> None:
+def validate_document_file(file_path: Path, max_size_mb: int | None = None) -> None:
     """Validate a document from a local file path before ingestion."""
     if not file_path.exists():
         raise DocumentValidationError(
@@ -47,7 +47,7 @@ def validate_document_file(file_path: Path, max_size_mb: Optional[int] = None) -
 def validate_document_bytes(
     filename: str,
     content: bytes,
-    max_size_mb: Optional[int] = None
+    max_size_mb: int | None = None
 ) -> None:
     """Validate raw document bytes and metadata."""
     extension = Path(filename).suffix.lower()
@@ -73,7 +73,7 @@ def validate_document_metadata(
     filename: str,
     extension: str,
     file_size: int,
-    max_size_mb: Optional[int] = None
+    max_size_mb: int | None = None
 ) -> None:
     """Validate extension and size constraints."""
     if not extension:
@@ -105,16 +105,14 @@ def validate_document_metadata(
 
 def _verify_file_signature(content: bytes, extension: str, filename: str) -> None:
     """Verify magic bytes to prevent corruption or misleading file extensions."""
-    if extension == ".pdf":
-        if not content.startswith(b"%PDF-"):
-            raise DocumentValidationError(
-                code="CORRUPT_OR_INVALID_PDF",
-                message=f"File '{filename}' does not have a valid PDF header."
-            )
-    elif extension == ".docx":
-        # DOCX is a ZIP archive, must start with PK\x03\x04
-        if not content.startswith(b"PK\x03\x04"):
-            raise DocumentValidationError(
-                code="CORRUPT_OR_INVALID_DOCX",
-                message=f"File '{filename}' does not have a valid DOCX/ZIP header."
-            )
+    if extension == ".pdf" and not content.startswith(b"%PDF-"):
+        raise DocumentValidationError(
+            code="CORRUPT_OR_INVALID_PDF",
+            message=f"File '{filename}' does not have a valid PDF header."
+        )
+    if extension == ".docx" and not content.startswith(b"PK\x03\x04"):
+        raise DocumentValidationError(
+            code="CORRUPT_OR_INVALID_DOCX",
+            message=f"File '{filename}' does not have a valid DOCX/ZIP header."
+        )
+

@@ -2,9 +2,10 @@
 
 import logging
 import time
-from typing import List, Optional
+
 from google import genai
 from google.genai import errors
+
 from backend.app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -13,10 +14,10 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     """Service responsible for generating semantic vectors via Gemini API."""
 
-    def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
+    def __init__(self, api_key: str | None = None, model_name: str | None = None):
         self.api_key = api_key or settings.GEMINI_API_KEY
         self.model_name = model_name or settings.GEMINI_EMBEDDING_MODEL
-        self._client: Optional[genai.Client] = None
+        self._client: genai.Client | None = None
 
     @property
     def client(self) -> genai.Client:
@@ -31,10 +32,10 @@ class EmbeddingService:
 
     def embed_texts(
         self,
-        texts: List[str],
-        batch_size: Optional[int] = None,
+        texts: list[str],
+        batch_size: int | None = None,
         max_retries: int = 3
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """
         Convert a list of text strings into vector embeddings using batching.
         
@@ -50,7 +51,7 @@ class EmbeddingService:
             return []
 
         effective_batch_size = batch_size or settings.EMBEDDING_BATCH_SIZE
-        all_embeddings: List[List[float]] = []
+        all_embeddings: list[list[float]] = []
 
         for i in range(0, len(texts), effective_batch_size):
             batch = texts[i : i + effective_batch_size]
@@ -59,7 +60,7 @@ class EmbeddingService:
 
         return all_embeddings
 
-    def embed_single(self, text: str) -> List[float]:
+    def embed_single(self, text: str) -> list[float]:
         """Embed a single text string."""
         results = self.embed_texts([text])
         if not results:
@@ -68,9 +69,9 @@ class EmbeddingService:
 
     def _embed_batch_with_retry(
         self,
-        batch: List[str],
+        batch: list[str],
         max_retries: int = 3
-    ) -> List[List[float]]:
+    ) -> list[list[float]]:
         """Execute embed_content with exponential backoff for transient errors."""
         attempt = 0
         backoff_delay = 1.0

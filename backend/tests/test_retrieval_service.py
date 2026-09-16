@@ -1,6 +1,7 @@
 """Unit and integration tests for the RetrievalService and query pipeline."""
 
 import pytest
+
 from backend.app.schemas.document import DocumentChunk
 from backend.app.services.embedding_service import EmbeddingService
 from backend.app.services.qdrant_service import QdrantService

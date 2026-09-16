@@ -1,6 +1,7 @@
 """End-to-end test for document ingestion pipeline."""
 
 from pathlib import Path
+
 from backend.app.schemas.document import DocumentStatus
 from backend.app.services.document_service import DocumentService
 from backend.app.services.embedding_service import EmbeddingService

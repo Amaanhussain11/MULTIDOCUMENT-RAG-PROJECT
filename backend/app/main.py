@@ -1,9 +1,11 @@
 """Main FastAPI application entry point."""
 
 import logging
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 
 from backend.app.api.routes import chat, documents, health
@@ -12,7 +14,6 @@ from backend.app.utils.validator import DocumentValidationError
 
 logger = logging.getLogger(__name__)
 
-from fastapi.openapi.utils import get_openapi
 
 app = FastAPI(
     title="Multi-Document RAG Service Platform",
