@@ -8,6 +8,7 @@ router = APIRouter(prefix="/health", tags=["Health"])
 
 
 @router.get("")
+@router.post("")
 def health_check():
     """Health check endpoint confirming API status and external service configurations."""
     return {
