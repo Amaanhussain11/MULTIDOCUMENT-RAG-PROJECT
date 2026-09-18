@@ -1,6 +1,6 @@
 """Data schemas for documents, chunks, and Qdrant payloads."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -20,8 +20,8 @@ class Document(BaseModel):
     file_type: str
     file_size: int
     status: DocumentStatus = DocumentStatus.QUEUED
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class DocumentChunk(BaseModel):

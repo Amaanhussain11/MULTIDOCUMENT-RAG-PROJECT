@@ -48,6 +48,13 @@ htmlcov/
 # Logs & Local Storage
 *.log
 qdrant_storage/
+backend/data/
 sampletext.txt
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.vercel
 
 

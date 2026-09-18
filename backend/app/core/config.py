@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # Gemini settings
     GEMINI_API_KEY: str = "AQ.Ab8RN6LGyQ8C_OjSnURHHeI0jYkxUp8IhYmF3OwJWgVt6qQczw"
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
-    GEMINI_GENERATION_MODEL: str = "gemini-3.7-flash"
+    GEMINI_GENERATION_MODEL: str = "gemini-3.5-flash-lite"
 
     # Qdrant settings
     QDRANT_URL: str = "http://localhost:6333"
@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # Concurrency and batching
     MAX_EMBEDDING_CONCURRENCY: int = 5
     EMBEDDING_BATCH_SIZE: int = 20
+
+    # User & API defaults
+    DEFAULT_USER_ID: str = "default_user"
+    CORS_ORIGINS: list[str] = ["*"]
 
 
 settings = Settings()
