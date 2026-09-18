@@ -8,8 +8,9 @@ from pathlib import Path
 
 from backend.app.core.config import settings
 from backend.app.parsers import get_parser
-from backend.app.schemas.document import DocumentStatus, IngestionResult
+from backend.app.schemas.document import Document, DocumentStatus, IngestionResult
 from backend.app.services.embedding_service import EmbeddingService
+from backend.app.services.metadata_store import MetadataStore
 from backend.app.services.qdrant_service import QdrantService
 from backend.app.utils.chunker import create_chunks
 from backend.app.utils.cleaner import clean_text
@@ -36,9 +37,11 @@ class DocumentService:
         self,
         embedding_service: EmbeddingService | None = None,
         qdrant_service: QdrantService | None = None,
+        metadata_store: MetadataStore | None = None,
     ):
         self.embedding_service = embedding_service or EmbeddingService()
         self.qdrant_service = qdrant_service or QdrantService()
+        self.metadata_store = metadata_store or MetadataStore()
 
     def ingest_file(
         self,
@@ -59,6 +62,18 @@ class DocumentService:
         file_path = Path(file_path).resolve()
         doc_id = document_id or f"doc_{uuid.uuid4().hex[:12]}"
         doc_name = file_path.name
+
+        # Record document as PROCESSING in metadata store
+        file_size = file_path.stat().st_size if file_path.exists() else 0
+        doc_record = Document(
+            document_id=doc_id,
+            user_id=user_id,
+            document_name=doc_name,
+            file_type=file_path.suffix.lstrip("."),
+            file_size=file_size,
+            status=DocumentStatus.PROCESSING,
+        )
+        self.metadata_store.save_document(doc_record)
 
         def report(step: str, msg: str):
             logger.info(f"[{doc_name}] [{step}] {msg}")
@@ -129,6 +144,9 @@ class DocumentService:
             )
             report("7_STORE", f"Successfully indexed {upsert_count} chunk(s) in Qdrant.")
 
+            # Update status in metadata store
+            self.metadata_store.update_status(doc_id, user_id, DocumentStatus.READY)
+
             return IngestionResult(
                 document_id=doc_id,
                 document_name=doc_name,
@@ -141,6 +159,7 @@ class DocumentService:
         except Exception as e:
             error_msg = str(e)
             report("FAILED", f"Ingestion failed: {error_msg}")
+            self.metadata_store.update_status(doc_id, user_id, DocumentStatus.FAILED)
             return IngestionResult(
                 document_id=doc_id,
                 document_name=doc_name,
@@ -148,6 +167,19 @@ class DocumentService:
                 status=DocumentStatus.FAILED,
                 error=error_msg,
             )
+
+    def list_documents(self, user_id: str) -> list[Document]:
+        """List all documents for a user."""
+        return self.metadata_store.list_documents(user_id)
+
+    def get_document(self, document_id: str, user_id: str) -> Document | None:
+        """Get document details by ID for a user."""
+        return self.metadata_store.get_document(document_id, user_id)
+
+    def delete_document(self, document_id: str, user_id: str) -> bool:
+        """Delete a document and all its chunks from Qdrant and metadata store."""
+        self.qdrant_service.delete_document(document_id, user_id)
+        return self.metadata_store.delete_document(document_id, user_id)
 
     def ingest_files(
         self,
@@ -169,3 +201,4 @@ class DocumentService:
                 results.append(future.result())
 
         return results
+
