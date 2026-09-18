@@ -40,11 +40,22 @@ def test_root_endpoint():
 
 def test_health_check_endpoint():
     client = TestClient(app)
+    # Test GET
     response = client.get("/api/v1/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
     assert "services" in data
+
+    # Test POST for keep-alive pingers
+    post_resp = client.post("/api/v1/health")
+    assert post_resp.status_code == 200
+    assert post_resp.json()["status"] == "ok"
+
+    # Test root ping POST
+    ping_resp = client.post("/ping")
+    assert ping_resp.status_code == 200
+    assert ping_resp.json()["status"] == "ok"
 
 
 def test_list_documents_empty(client):

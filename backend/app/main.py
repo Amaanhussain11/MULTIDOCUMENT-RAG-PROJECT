@@ -107,7 +107,9 @@ def root():
 
 
 @app.get("/health", tags=["Root"])
+@app.post("/health", tags=["Root"])
 @app.get("/ping", tags=["Root"])
+@app.post("/ping", tags=["Root"])
 def quick_ping():
     """Convenience health/ping endpoint for uptime monitors and keep-alive jobs."""
-    return {"status": "ok"}
+    return {"status": "ok", "message": "pong"}

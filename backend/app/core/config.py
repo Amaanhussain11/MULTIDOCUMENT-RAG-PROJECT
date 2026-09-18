@@ -1,6 +1,9 @@
 """Configuration management for the RAG service."""
 
 
+import json
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,7 +42,23 @@ class Settings(BaseSettings):
 
     # User & API defaults
     DEFAULT_USER_ID: str = "default_user"
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list[str] | str = ["*"]
+
+    @field_validator("CORS_ORIGINS", mode="after")
+    @classmethod
+    def assemble_cors_origins(cls, v: list[str] | str) -> list[str]:
+        """Support raw string '*', JSON arrays '[\"*\"]', or comma-separated URLs."""
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            if "," in v:
+                return [item.strip() for item in v.split(",") if item.strip()]
+            return [v]
+        return v
 
 
 settings = Settings()
