@@ -42,23 +42,45 @@ class Settings(BaseSettings):
 
     # User & API defaults
     DEFAULT_USER_ID: str = "default_user"
-    CORS_ORIGINS: list[str] | str = ["*"]
+    CORS_ORIGINS: list[str] | str = [
+        "*",
+        "https://mutli-document-rag-service.vercel.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
 
     @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def assemble_cors_origins(cls, v: list[str] | str) -> list[str]:
-        """Support raw string '*', JSON arrays '[\"*\"]', or comma-separated URLs."""
+        """Support raw string '*', JSON arrays '[\"*\"]', or comma-separated URLs, stripping trailing slashes."""
+        raw_list: list[str] = []
         if isinstance(v, str):
             v = v.strip()
             if v.startswith("[") and v.endswith("]"):
                 try:
-                    return json.loads(v)
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        raw_list = [str(x) for x in parsed]
                 except Exception:
                     pass
-            if "," in v:
-                return [item.strip() for item in v.split(",") if item.strip()]
-            return [v]
-        return v
+            if not raw_list:
+                if "," in v:
+                    raw_list = [item.strip() for item in v.split(",") if item.strip()]
+                else:
+                    raw_list = [v]
+        elif isinstance(v, (list, tuple, set)):
+            raw_list = [str(x) for x in v]
+        else:
+            raw_list = [str(v)]
+
+        cleaned: list[str] = []
+        for origin in raw_list:
+            origin_clean = origin.strip()
+            if origin_clean != "*" and origin_clean.endswith("/"):
+                origin_clean = origin_clean.rstrip("/")
+            if origin_clean and origin_clean not in cleaned:
+                cleaned.append(origin_clean)
+        return cleaned or ["*"]
 
 
 settings = Settings()
