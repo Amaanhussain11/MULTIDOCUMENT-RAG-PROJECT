@@ -1,6 +1,7 @@
 """Qdrant vector database service for chunk storage and retrieval."""
 
 import logging
+import re
 import uuid
 
 from qdrant_client import QdrantClient
@@ -11,6 +12,36 @@ from backend.app.schemas.document import DocumentChunk, QdrantPayload
 from backend.app.schemas.query import RetrievedChunk
 
 logger = logging.getLogger(__name__)
+
+
+_SHARED_QDRANT_CLIENT: QdrantClient | None = None
+
+
+def get_shared_qdrant_client(url: str, api_key: str | None = None) -> QdrantClient:
+    """Thread-safe singleton for local and remote Qdrant storage."""
+    global _SHARED_QDRANT_CLIENT
+    if _SHARED_QDRANT_CLIENT is not None:
+        return _SHARED_QDRANT_CLIENT
+
+    if url == ":memory:":
+        _SHARED_QDRANT_CLIENT = QdrantClient(location=":memory:")
+    elif url.startswith("http://localhost") or url.startswith("http://127.0.0.1"):
+        try:
+            client = QdrantClient(url=url, api_key=api_key, timeout=1.5)
+            client.get_collections()
+            _SHARED_QDRANT_CLIENT = client
+        except Exception as e:
+            logger.info(
+                f"Local Qdrant server not detected at {url} ({e}). "
+                f"Using embedded local disk storage at './qdrant_storage'."
+            )
+            _SHARED_QDRANT_CLIENT = QdrantClient(path="./qdrant_storage")
+    elif url.startswith("http://") or url.startswith("https://"):
+        _SHARED_QDRANT_CLIENT = QdrantClient(url=url, api_key=api_key)
+    else:
+        _SHARED_QDRANT_CLIENT = QdrantClient(path=url)
+
+    return _SHARED_QDRANT_CLIENT
 
 
 class QdrantService:
@@ -30,26 +61,10 @@ class QdrantService:
 
     @property
     def client(self) -> QdrantClient:
-        """Lazy QdrantClient initialization with fallback to local disk storage if localhost is offline."""
-        if self._client is None:
-            if self.url == ":memory:":
-                self._client = QdrantClient(location=":memory:")
-            elif self.url.startswith("http://localhost") or self.url.startswith("http://127.0.0.1"):
-                try:
-                    client = QdrantClient(url=self.url, api_key=self.api_key, timeout=2.0)
-                    client.get_collections()
-                    self._client = client
-                except Exception as e:
-                    logger.info(
-                        f"Local Qdrant server not detected at {self.url} ({e}). "
-                        f"Using embedded local disk storage at './qdrant_storage'."
-                    )
-                    self._client = QdrantClient(path="./qdrant_storage")
-            elif self.url.startswith("http://") or self.url.startswith("https://"):
-                self._client = QdrantClient(url=self.url, api_key=self.api_key)
-            else:
-                self._client = QdrantClient(path=self.url)
-        return self._client
+        """Lazy QdrantClient initialization using shared singleton to avoid storage file lock contention."""
+        if self._client is not None:
+            return self._client
+        return get_shared_qdrant_client(self.url, self.api_key)
 
     def ensure_collection(self, vector_size: int) -> None:
         """Create the rag_documents collection if it doesn't exist, and index metadata fields."""
@@ -149,7 +164,7 @@ class QdrantService:
         logger.info(f"Upserted {len(points)} chunks into '{self.collection_name}'.")
         return len(points)
 
-    def delete_document(self, document_id: str, user_id: str) -> None:
+    def delete_document(self, document_id: str, user_id: str = "default_user") -> None:
         """Delete all chunks belonging to a document under a specific user."""
         self.client.delete(
             collection_name=self.collection_name,
@@ -166,14 +181,62 @@ class QdrantService:
                         )
                     ]
                 )
-            )
+            ),
+            wait=True,
         )
+
+    def purge_orphaned_documents(self, valid_document_ids: list[str], user_id: str = "default_user") -> int:
+        """Delete all points in Qdrant for this user whose document_id is NOT in valid_document_ids."""
+        collections = self.client.get_collections().collections
+        if not any(c.name == self.collection_name for c in collections):
+            return 0
+
+        valid_set = set(valid_document_ids)
+        orphaned_ids = set()
+        offset = None
+
+        try:
+            while True:
+                scroll_res = self.client.scroll(
+                    collection_name=self.collection_name,
+                    scroll_filter=qmodels.Filter(
+                        must=[
+                            qmodels.FieldCondition(
+                                key="user_id",
+                                match=qmodels.MatchValue(value=user_id)
+                            )
+                        ]
+                    ),
+                    limit=100,
+                    with_payload=True,
+                    with_vectors=False,
+                    offset=offset,
+                )
+                points, next_offset = scroll_res
+                for pt in points:
+                    payload = pt.payload or {}
+                    d_id = payload.get("document_id")
+                    if d_id and d_id not in valid_set:
+                        orphaned_ids.add(d_id)
+                if next_offset is None or not points:
+                    break
+                offset = next_offset
+
+            if orphaned_ids:
+                logger.info(f"Purging {len(orphaned_ids)} orphaned document(s) from Qdrant: {orphaned_ids}")
+                for o_id in orphaned_ids:
+                    self.delete_document(o_id, user_id)
+            return len(orphaned_ids)
+        except Exception as e:
+            logger.error(f"Error purging orphaned documents from Qdrant: {e}")
+            return 0
 
     def search_chunks(
         self,
         query_vector: list[float],
         user_id: str,
         document_id: str | None = None,
+        document_ids: list[str] | None = None,
         top_k: int = 5,
         score_threshold: float | None = None,
     ) -> list[RetrievedChunk]:
@@ -183,13 +246,18 @@ class QdrantService:
         Args:
             query_vector: Dense embedding vector for the question.
             user_id: Authenticated user ID (strictly required for isolation).
-            document_id: Optional specific document ID to filter search within.
+            document_id: Optional single document ID to filter search within.
+            document_ids: Optional list of document IDs to filter search within.
             top_k: Maximum number of chunks to return (default 5).
             score_threshold: Minimum similarity score threshold.
 
         Returns:
             List of RetrievedChunk models ordered by similarity.
         """
+        # If document_ids is explicitly provided as empty list, no documents are in scope
+        if document_ids is not None and len(document_ids) == 0:
+            return []
+
         # Ensure collection exists before querying
         collections = self.client.get_collections().collections
         if not any(c.name == self.collection_name for c in collections):
@@ -197,7 +265,7 @@ class QdrantService:
             return []
 
         # Strict user isolation filter
-        filter_conditions = [
+        filter_conditions: list[qmodels.Condition] = [
             qmodels.FieldCondition(
                 key="user_id",
                 match=qmodels.MatchValue(value=user_id)
@@ -209,6 +277,13 @@ class QdrantService:
                 qmodels.FieldCondition(
                     key="document_id",
                     match=qmodels.MatchValue(value=document_id)
+                )
+            )
+        elif document_ids is not None:
+            filter_conditions.append(
+                qmodels.FieldCondition(
+                    key="document_id",
+                    match=qmodels.MatchAny(any=document_ids)
                 )
             )
 
@@ -237,11 +312,13 @@ class QdrantService:
         retrieved: list[RetrievedChunk] = []
         for point in scored_points:
             payload = point.payload or {}
+            raw_doc_name = str(payload.get("document_name", ""))
+            clean_doc_name = re.sub(r"^(doc_[a-zA-Z0-9]+_)+", "", raw_doc_name)
             retrieved.append(
                 RetrievedChunk(
                     chunk_id=str(payload.get("chunk_id", point.id)),
                     document_id=str(payload.get("document_id", "")),
-                    document_name=str(payload.get("document_name", "")),
+                    document_name=clean_doc_name,
                     chunk_index=int(payload.get("chunk_index", 0)),
                     page_number=payload.get("page_number"),
                     text=str(payload.get("text", "")),

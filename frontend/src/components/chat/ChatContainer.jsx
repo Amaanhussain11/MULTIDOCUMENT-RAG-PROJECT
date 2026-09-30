@@ -11,6 +11,7 @@ export function ChatContainer({
   readyDocumentsCount = 0,
   error = null,
   onCitationClick,
+  onChunkClick,
   scopedDocsCount = 0,
   className = "",
 }) {
@@ -97,6 +98,7 @@ export function ChatContainer({
             key={index}
             message={msg}
             onCitationClick={onCitationClick}
+            onChunkClick={onChunkClick}
           />
         ))}
 

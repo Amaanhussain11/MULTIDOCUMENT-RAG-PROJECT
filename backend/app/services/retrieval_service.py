@@ -38,6 +38,7 @@ class RetrievalService:
         question: str,
         user_id: str,
         document_id: str | None = None,
+        document_ids: list[str] | None = None,
         top_k: int | None = None,
         similarity_threshold: float | None = None,
         on_step: Callable[[str, str], None] | None = None,
@@ -49,6 +50,7 @@ class RetrievalService:
             question: User natural-language question.
             user_id: Authenticated user ID for logical multi-tenant isolation.
             document_id: Optional specific document ID to scope search.
+            document_ids: Optional list of document IDs to scope search across multiple selected files.
             top_k: Maximum number of chunks to retrieve (defaults to settings.DEFAULT_TOP_K).
             similarity_threshold: Minimum cosine similarity score (defaults to settings.SIMILARITY_THRESHOLD).
             on_step: Optional callback receiving (step_name, detail_message).
@@ -89,11 +91,13 @@ class RetrievalService:
         report("2_EMBED", f"Generated query vector with dimension {len(query_vector)}.")
 
         # Step 3: Qdrant Similarity Search with User Isolation
-        filter_scope = (
-            f"user_id='{user_id}' and document_id='{document_id}'"
-            if document_id
-            else f"user_id='{user_id}' (all documents)"
-        )
+        if document_id:
+            filter_scope = f"user_id='{user_id}' and document_id='{document_id}'"
+        elif document_ids is not None:
+            filter_scope = f"user_id='{user_id}' and document_ids={document_ids}"
+        else:
+            filter_scope = f"user_id='{user_id}' (all documents)"
+
         report(
             "3_SEARCH",
             f"Searching Qdrant collection '{self.qdrant_service.collection_name}' with filter: {filter_scope}...",
@@ -102,6 +106,7 @@ class RetrievalService:
             query_vector=query_vector,
             user_id=user_id,
             document_id=document_id,
+            document_ids=document_ids,
             top_k=effective_top_k,
             score_threshold=effective_threshold,
         )

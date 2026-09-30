@@ -33,8 +33,9 @@ export function DocumentSidebar({
   );
 
   const totalBytes = documents.reduce((acc, doc) => acc + (doc.file_size || 0), 0);
-  const totalPages = documents.length * 15; // Estimated pages across corpus
-  const totalQuotes = documents.length * 28; // Estimated indexed chunks
+  const totalPages = documents.reduce((acc, doc) => acc + (doc.page_count || (doc.status === "READY" ? 15 : 0)), 0);
+  const totalChunks = documents.reduce((acc, doc) => acc + (doc.chunk_count || 0), 0);
+
 
   const allSelected =
     documents.length > 0 &&
@@ -228,7 +229,7 @@ export function DocumentSidebar({
             <Quote className="h-3 w-3 text-primary" /> Chunks Indexed
           </span>
           <span className="font-mono font-medium text-text-primary">
-            {totalQuotes}
+            {totalChunks}
           </span>
         </div>
       </div>

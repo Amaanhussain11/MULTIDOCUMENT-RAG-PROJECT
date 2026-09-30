@@ -50,4 +50,8 @@ htmlcov/
 qdrant_storage/
 sampletext.txt
 
-
+# Node & Frontend
+node_modules/
+dist/
+.vite/
+uploaded_documents/ 

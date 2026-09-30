@@ -96,14 +96,20 @@ export const api = {
   /**
    * Query Documents via Chat: POST /api/v1/chat
    * @param {string} question
+   * @param {string[]|null} documentIds
    */
-  async sendChatQuery(question) {
+  async sendChatQuery(question, documentIds = null) {
+    const payload = { question };
+    if (Array.isArray(documentIds) && documentIds.length > 0) {
+      payload.document_ids = documentIds;
+    }
+
     const res = await fetch(`${API_BASE_URL}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify(payload),
     });
     return handleResponse(res);
   },

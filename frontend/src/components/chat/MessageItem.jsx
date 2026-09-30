@@ -10,12 +10,13 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Skeleton } from "../ui/Skeleton";
+import { RetrievedChunksView } from "./RetrievedChunksView";
 import { cn } from "../../utils/cn";
 
-export function MessageItem({ message, onCitationClick }) {
+export function MessageItem({ message, onCitationClick, onChunkClick }) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState(null); // 'like' | 'dislike'
-  const { role, content, sources = [], isLoading = false } = message;
+  const { role, content, sources = [], chunks = [], isLoading = false } = message;
 
   const isUser = role === "user";
 
@@ -101,6 +102,14 @@ export function MessageItem({ message, onCitationClick }) {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Top-K (5) Retrieved Chunks from Multiple Documents */}
+              {chunks && chunks.length > 0 && (
+                <RetrievedChunksView
+                  chunks={chunks}
+                  onChunkClick={onChunkClick}
+                />
               )}
 
               {/* Action & Feedback Bar (Screenshot 1 matching thumbs up, down, copy) */}

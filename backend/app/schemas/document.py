@@ -20,6 +20,8 @@ class Document(BaseModel):
     file_type: str
     file_size: int
     status: DocumentStatus = DocumentStatus.QUEUED
+    chunk_count: int = 0
+    error: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

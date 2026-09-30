@@ -51,11 +51,18 @@ export function App() {
   // Context scope selection (which documents to include in RAG query)
   const [selectedDocIdsForScope, setSelectedDocIdsForScope] = useState([]);
 
-  // Initialize all ready docs into scope by default
+  // Initialize and synchronize ready docs into scope
   React.useEffect(() => {
-    if (documents.length > 0 && selectedDocIdsForScope.length === 0) {
-      setSelectedDocIdsForScope(documents.map((d) => d.document_id));
-    }
+    const validIds = new Set(
+      documents.filter((d) => d.status === "READY").map((d) => d.document_id)
+    );
+    setSelectedDocIdsForScope((prev) => {
+      const filtered = prev.filter((id) => validIds.has(id));
+      if (filtered.length === 0 && validIds.size > 0) {
+        return Array.from(validIds);
+      }
+      return filtered;
+    });
   }, [documents]);
 
   const toggleDocScope = (id) => {
@@ -77,9 +84,40 @@ export function App() {
     isLoading: isChatLoading,
     error: chatError,
     sendMessage,
-  } = useChat(isBackendConnected);
+  } = useChat(isBackendConnected, documents);
 
   const readyDocumentsCount = documents.filter((d) => d.status === "READY").length;
+
+  const handleSendMessage = (question) => {
+    const targetDocIds =
+      selectedDocIdsForScope.length > 0
+        ? selectedDocIdsForScope
+        : documents.filter((d) => d.status === "READY").map((d) => d.document_id);
+    sendMessage(question, targetDocIds);
+  };
+
+  // Get top 5 retrieved chunks from the latest assistant message
+  const latestAssistantMessageWithChunks = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant" && m.chunks && m.chunks.length > 0);
+  const activeChunks = latestAssistantMessageWithChunks?.chunks || [];
+
+  // Handler when user clicks on a retrieved chunk in the chat or chunk inspector
+  const handleChunkClick = (chunk) => {
+    const foundDoc = documents.find((d) => d.document_name === chunk.document_name);
+    if (foundDoc) {
+      setSelectedDoc(foundDoc);
+    } else {
+      setSelectedDoc({
+        document_id: chunk.document_id || "retrieved_doc",
+        document_name: chunk.document_name,
+      });
+    }
+
+    setViewerPage(chunk.page_number || 1);
+    setHighlightedChunk(chunk.text || "");
+    setIsViewerOpen(true);
+  };
 
   // Handler when user clicks a citation pill [1] in the chat response
   const handleCitationClick = (source) => {
@@ -150,10 +188,19 @@ export function App() {
         {/* Center: Active Context / Document Label */}
         <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-card-elevated border border-border text-[11px] text-text-secondary">
           <span className="h-1.5 w-1.5 rounded-full bg-status-success animate-pulse" />
-          <span>Knowledge Base Active:</span>
+          <span>Knowledge Base:</span>
           <span className="font-semibold text-text-primary">
-            {selectedDocIdsForScope.length} of {documents.length} Docs
+            {selectedDocIdsForScope.length} of {documents.length} Docs Active
           </span>
+          {activeChunks.length > 0 && (
+            <>
+              <span className="text-border">•</span>
+              <span className="text-primary font-semibold flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                Top {activeChunks.length} Chunks Retrieved
+              </span>
+            </>
+          )}
         </div>
 
         {/* Right: Actions & Viewer Toggle */}
@@ -227,8 +274,9 @@ export function App() {
             isLoading={isChatLoading}
             error={chatError}
             readyDocumentsCount={readyDocumentsCount}
-            onSend={sendMessage}
+            onSend={handleSendMessage}
             onCitationClick={handleCitationClick}
+            onChunkClick={handleChunkClick}
             scopedDocsCount={selectedDocIdsForScope.length}
           />
         </div>
@@ -240,6 +288,8 @@ export function App() {
               selectedDocName={selectedDoc.document_name}
               initialPage={viewerPage}
               highlightedChunk={highlightedChunk}
+              chunks={activeChunks}
+              onSelectChunk={handleChunkClick}
               onClose={() => setIsViewerOpen(false)}
             />
           </div>

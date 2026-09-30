@@ -106,7 +106,11 @@ class DocumentService:
                 chunk_size=settings.CHUNK_SIZE,
                 chunk_overlap=settings.CHUNK_OVERLAP,
             )
-            report("5_CHUNK", f"Generated {len(chunks)} chunk(s).")
+            if settings.MAX_CHUNKS_PER_DOCUMENT > 0 and len(chunks) > settings.MAX_CHUNKS_PER_DOCUMENT:
+                report("5_CHUNK", f"Capping chunks at {settings.MAX_CHUNKS_PER_DOCUMENT} (out of {len(chunks)}) to preserve API quota.")
+                chunks = chunks[:settings.MAX_CHUNKS_PER_DOCUMENT]
+
+            report("5_CHUNK", f"Prepared {len(chunks)} chunk(s) for indexing.")
 
             # Step 6: Embed Vectors
             report(

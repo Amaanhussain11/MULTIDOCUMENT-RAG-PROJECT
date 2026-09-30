@@ -34,10 +34,10 @@ class EmbeddingService:
         self,
         texts: list[str],
         batch_size: int | None = None,
-        max_retries: int = 3
+        max_retries: int = 5
     ) -> list[list[float]]:
         """
-        Convert a list of text strings into vector embeddings using batching.
+        Convert a list of text strings into vector embeddings using batching and rate limiting.
         
         Args:
             texts: List of text strings to embed.
@@ -53,16 +53,22 @@ class EmbeddingService:
         effective_batch_size = batch_size or settings.EMBEDDING_BATCH_SIZE
         all_embeddings: list[list[float]] = []
 
-        for i in range(0, len(texts), effective_batch_size):
+        total_batches = (len(texts) + effective_batch_size - 1) // effective_batch_size
+
+        for b_idx, i in enumerate(range(0, len(texts), effective_batch_size)):
             batch = texts[i : i + effective_batch_size]
             batch_embeddings = self._embed_batch_with_retry(batch, max_retries=max_retries)
             all_embeddings.extend(batch_embeddings)
+
+            # Throttle between batches to strictly adhere to Gemini Free Tier (15 RPM)
+            if b_idx < total_batches - 1 and settings.EMBEDDING_DELAY_SECONDS > 0:
+                time.sleep(settings.EMBEDDING_DELAY_SECONDS)
 
         return all_embeddings
 
     def embed_single(self, text: str) -> list[float]:
         """Embed a single text string."""
-        results = self.embed_texts([text])
+        results = self.embed_texts([text], max_retries=5)
         if not results:
             raise RuntimeError("Failed to generate embedding for text.")
         return results[0]
@@ -70,11 +76,11 @@ class EmbeddingService:
     def _embed_batch_with_retry(
         self,
         batch: list[str],
-        max_retries: int = 3
+        max_retries: int = 5
     ) -> list[list[float]]:
-        """Execute embed_content with exponential backoff for transient errors."""
+        """Execute embed_content with exponential backoff for transient and rate-limit (429) errors."""
         attempt = 0
-        backoff_delay = 1.0
+        backoff_delays = [3.0, 7.0, 15.0, 30.0, 45.0]
 
         while attempt < max_retries:
             try:
@@ -93,13 +99,13 @@ class EmbeddingService:
 
             except errors.APIError as e:
                 attempt += 1
+                delay = backoff_delays[min(attempt - 1, len(backoff_delays) - 1)]
                 logger.warning(
-                    f"Gemini API error on attempt {attempt}/{max_retries}: {e}. Retrying in {backoff_delay}s..."
+                    f"Gemini API rate limit or error on attempt {attempt}/{max_retries}: {e}. Backing off for {delay}s..."
                 )
                 if attempt >= max_retries:
                     raise
-                time.sleep(backoff_delay)
-                backoff_delay *= 2.0
+                time.sleep(delay)
             except Exception as e:
                 # Do not retry non-API configuration/argument errors
                 logger.error(f"Failed to generate embeddings: {e}")

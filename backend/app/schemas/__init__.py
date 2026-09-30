@@ -6,6 +6,7 @@ from backend.app.schemas.document import (
     QdrantPayload,
 )
 from backend.app.schemas.query import (
+    ChatResponse,
     ConstructedContext,
     QueryRequest,
     RetrievedChunk,
@@ -13,6 +14,7 @@ from backend.app.schemas.query import (
 )
 
 __all__ = [
+    "ChatResponse",
     "ConstructedContext",
     "Document",
     "DocumentChunk",
