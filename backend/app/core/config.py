@@ -9,13 +9,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "backend/.env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
 
     # Gemini settings
-    GEMINI_API_KEY: str = "AQ.Ab8RN6LGyQ8C_OjSnURHHeI0jYkxUp8IhYmF3OwJWgVt6qQczw"
+    GEMINI_API_KEY: str = ""
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
     GEMINI_GENERATION_MODEL: str = "gemini-3.5-flash-lite"
 

@@ -1,4 +1,6 @@
-# Python
+# ==============================================================================
+# Python & Bytecode
+# ==============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -21,7 +23,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 
+# ==============================================================================
 # Virtual Environments
+# ==============================================================================
 .venv/
 env/
 venv/
@@ -29,32 +33,81 @@ ENV/
 env.bak/
 venv.bak/
 
-# Environment Variables & Secrets
+# ==============================================================================
+# Environment Variables & Secrets (NEVER COMMIT)
+# ==============================================================================
 .env
 .env.*
+*.env
 !.env.example
+!backend/.env.example
+!frontend/.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+credentials.json
+client_secret*.json
+service-account*.json
+google-services.json
+firebase-adminsdk*.json
 
-# IDE & Editor
+# ==============================================================================
+# Vector DB, Local Storage & User Data
+# ==============================================================================
+qdrant_storage/
+*/qdrant_storage/
+data/
+backend/data/
+*/data/
+*.sqlite
+*.sqlite3
+*.db
+uploads/
+backend/uploads/
+frontend/uploads/
+sampletext.txt
+*.log
+
+# ==============================================================================
+# Testing & Code Quality Cache
+# ==============================================================================
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# ==============================================================================
+# Node, Frontend & Frameworks
+# ==============================================================================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+.vercel
+frontend/.vercel
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ==============================================================================
+# IDEs & Operating System Artifacts
+# ==============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# Testing & Coverage
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Logs & Local Storage
-*.log
-qdrant_storage/
-backend/data/
-sampletext.txt
-
-# Node & Frontend
-node_modules/
-frontend/node_modules/
-frontend/dist/
-.vercel
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 
