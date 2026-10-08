@@ -49,6 +49,13 @@ def chat_query(
     request: ChatRequest,
     x_user_id: str | None = Header(None, alias="x-user-id"),
 ):
+    cleaned_question = request.question.strip()
+    if not cleaned_question:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Question cannot be empty or whitespace only",
+        )
+
     user_id = x_user_id or settings.DEFAULT_USER_ID
 
     retrieval_svc = get_retrieval_service()
@@ -60,14 +67,14 @@ def chat_query(
 
     try:
         retrieved_context = retrieval_svc.retrieve_context(
-            query=request.question,
+            question=cleaned_question,
             user_id=user_id,
             document_id=target_doc_id,
             top_k=request.top_k or 5,
         )
 
         gen_result = gen_svc.generate_answer(
-            query=request.question,
+            question=cleaned_question,
             context=retrieved_context,
         )
 
@@ -85,8 +92,10 @@ def chat_query(
             answer=gen_result.get("answer", "") if isinstance(gen_result, dict) else getattr(gen_result, "answer", ""),
             sources=formatted_sources,
             chunks=formatted_chunks,
-            query=request.question,
+            query=cleaned_question,
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error(f"Error handling chat request: {exc}", exc_info=True)
         raise HTTPException(
