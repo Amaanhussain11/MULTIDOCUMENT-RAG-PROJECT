@@ -1,6 +1,7 @@
 """Chat and RAG query processing route."""
 
 import logging
+
 from fastapi import APIRouter, HTTPException
 
 from backend.app.schemas.query import ChatResponse, QueryRequest
