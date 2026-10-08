@@ -33,7 +33,16 @@ class ConstructedContext(BaseModel):
 class QueryRequest(BaseModel):
     """Incoming user query request with user isolation and filtering parameters."""
     question: str
-    user_id: str
+    user_id: str = "default_user"
     document_id: str | None = None
-    top_k: int | None = None
+    document_ids: list[str] | None = None
+    top_k: int | None = 5
     similarity_threshold: float | None = None
+
+
+class ChatResponse(BaseModel):
+    """Response returned by the /api/v1/chat endpoint including top-k retrieved chunks."""
+    answer: str
+    sources: list[SourceReference] = Field(default_factory=list)
+    chunks: list[RetrievedChunk] = Field(default_factory=list)
+    question: str | None = None
