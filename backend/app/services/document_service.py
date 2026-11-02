@@ -159,7 +159,7 @@ class DocumentService:
         except Exception as e:
             error_msg = str(e)
             report("FAILED", f"Ingestion failed: {error_msg}")
-            self.metadata_store.update_status(doc_id, user_id, DocumentStatus.FAILED)
+            self.metadata_store.update_status(doc_id, user_id, DocumentStatus.FAILED, error=error_msg)
             return IngestionResult(
                 document_id=doc_id,
                 document_name=doc_name,

@@ -58,6 +58,14 @@ export function DocumentCard({ document, onDelete, isDeleting = false }) {
           <Calendar className="h-3 w-3" />
           <span>{formatDate(created_at)}</span>
         </div>
+
+        {/* Error message if failed */}
+        {status === "FAILED" && document.error && (
+          <div className="mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs break-words" title={document.error}>
+            <span className="font-semibold block text-[10px] uppercase tracking-wider mb-0.5 text-rose-300">Failure Reason</span>
+            <span className="line-clamp-3 text-[11px] font-mono leading-tight">{document.error}</span>
+          </div>
+        )}
       </div>
 
       {/* Footer Actions */}

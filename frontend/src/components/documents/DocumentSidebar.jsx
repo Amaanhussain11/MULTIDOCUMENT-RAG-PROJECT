@@ -183,7 +183,7 @@ export function DocumentSidebar({
 
                 {/* Status or Delete */}
                 <div className="flex items-center gap-1 shrink-0">
-                  <Badge status={doc.status} size="xs" />
+                  <Badge status={doc.status} size="xs" title={doc.error || doc.status} />
 
                   <button
                     type="button"

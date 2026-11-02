@@ -20,6 +20,7 @@ class Document(BaseModel):
     file_type: str
     file_size: int
     status: DocumentStatus = DocumentStatus.QUEUED
+    error: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
