@@ -113,4 +113,15 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  /**
+   * Get all indexed chunks for a document: GET /api/v1/documents/{document_id}/chunks
+   * @param {string} documentId
+   */
+  async getDocumentChunks(documentId) {
+    const res = await fetch(
+      `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/chunks`
+    );
+    return handleResponse(res);
+  },
 };

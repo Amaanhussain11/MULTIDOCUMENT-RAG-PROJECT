@@ -197,6 +197,65 @@ class QdrantService:
                 ),
             )
 
+    def get_document_chunks(self, document_id: str, user_id: str) -> list[RetrievedChunk]:
+        """
+        Retrieve ALL stored chunks for a specific document using Qdrant scroll
+        (no query vector required — fetches by metadata filter only).
+
+        Returns chunks sorted by chunk_index ascending.
+        """
+        with _qdrant_op_lock:
+            collections = self.client.get_collections().collections
+            if not any(c.name == self.collection_name for c in collections):
+                return []
+
+            doc_filter = qmodels.Filter(
+                must=[
+                    qmodels.FieldCondition(
+                        key="user_id",
+                        match=qmodels.MatchValue(value=user_id),
+                    ),
+                    qmodels.FieldCondition(
+                        key="document_id",
+                        match=qmodels.MatchValue(value=document_id),
+                    ),
+                ]
+            )
+
+            results: list[RetrievedChunk] = []
+            offset = None
+
+            while True:
+                points, next_offset = self.client.scroll(
+                    collection_name=self.collection_name,
+                    scroll_filter=doc_filter,
+                    limit=100,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+
+                for point in points:
+                    payload = point.payload or {}
+                    results.append(
+                        RetrievedChunk(
+                            chunk_id=str(payload.get("chunk_id", point.id)),
+                            document_id=str(payload.get("document_id", "")),
+                            document_name=str(payload.get("document_name", "")),
+                            chunk_index=int(payload.get("chunk_index", 0)),
+                            page_number=payload.get("page_number"),
+                            text=str(payload.get("text", "")),
+                            score=1.0,
+                        )
+                    )
+
+                if next_offset is None:
+                    break
+                offset = next_offset
+
+        results.sort(key=lambda c: c.chunk_index)
+        return results
+
 
     def search_chunks(
         self,

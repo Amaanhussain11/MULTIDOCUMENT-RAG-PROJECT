@@ -81,6 +81,17 @@ export function App() {
 
   const readyDocumentsCount = documents.filter((d) => d.status === "READY").length;
 
+  // Derive the top chunks from the most recent assistant message that has chunks
+  const latestChunks = React.useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role === "assistant" && msg.chunks && msg.chunks.length > 0) {
+        return msg.chunks;
+      }
+    }
+    return [];
+  }, [messages]);
+
   // Handler when user clicks a citation pill [1] in the chat response
   const handleCitationClick = (source) => {
     // Find matching document or use source document name
@@ -238,8 +249,14 @@ export function App() {
           <div className="w-full sm:w-[420px] md:w-[480px] lg:w-[540px] xl:w-[600px] h-full shrink-0 z-10">
             <DocumentViewer
               selectedDocName={selectedDoc.document_name}
+              documentId={selectedDoc.document_id}
               initialPage={viewerPage}
               highlightedChunk={highlightedChunk}
+              chunks={latestChunks}
+              onSelectChunk={(chunk) => {
+                setViewerPage(chunk.page_number || 1);
+                setHighlightedChunk(chunk.text || "");
+              }}
               onClose={() => setIsViewerOpen(false)}
             />
           </div>

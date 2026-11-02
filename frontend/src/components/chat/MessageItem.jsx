@@ -11,11 +11,12 @@ import {
 } from "lucide-react";
 import { Skeleton } from "../ui/Skeleton";
 import { cn } from "../../utils/cn";
+import { RetrievedChunksView } from "./RetrievedChunksView";
 
 export function MessageItem({ message, onCitationClick }) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState(null); // 'like' | 'dislike'
-  const { role, content, sources = [], isLoading = false } = message;
+  const { role, content, sources = [], chunks = [], isLoading = false } = message;
 
   const isUser = role === "user";
 
@@ -101,6 +102,21 @@ export function MessageItem({ message, onCitationClick }) {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Top-K Retrieved Chunks Panel */}
+              {chunks && chunks.length > 0 && (
+                <RetrievedChunksView
+                  chunks={chunks}
+                  onChunkClick={(chunk) =>
+                    onCitationClick &&
+                    onCitationClick({
+                      document: chunk.document_name,
+                      page: chunk.page_number,
+                      chunk_text: chunk.text,
+                    })
+                  }
+                />
               )}
 
               {/* Action & Feedback Bar (Screenshot 1 matching thumbs up, down, copy) */}

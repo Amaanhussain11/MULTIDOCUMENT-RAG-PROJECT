@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # Retrieval & Search Settings (Spec Section 5.6 & 15: Top-K = 5, configurable threshold)
     DEFAULT_TOP_K: int = 5
-    SIMILARITY_THRESHOLD: float = 0.5
+    SIMILARITY_THRESHOLD: float = 0.3
 
     # Concurrency and batching
     MAX_EMBEDDING_CONCURRENCY: int = 5

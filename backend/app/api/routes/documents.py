@@ -9,6 +9,7 @@ from fastapi import APIRouter, File, Header, HTTPException, Response, UploadFile
 from backend.app.core.config import settings
 from backend.app.schemas.document import Document, IngestionResult
 from backend.app.services.document_service import DocumentService
+from backend.app.services.qdrant_service import QdrantService
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -31,23 +32,6 @@ def list_documents(
     user_id = x_user_id or settings.DEFAULT_USER_ID
     service = get_document_service()
     return service.list_documents(user_id)
-
-
-@router.get("/{document_id}", response_model=Document)
-def get_document(
-    document_id: str,
-    x_user_id: str | None = Header(None, alias="x-user-id"),
-):
-    """Get metadata for a specific document."""
-    user_id = x_user_id or settings.DEFAULT_USER_ID
-    service = get_document_service()
-    doc = service.get_document(document_id, user_id)
-    if not doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document with ID '{document_id}' was not found.",
-        )
-    return doc
 
 
 @router.post("/upload", response_model=list[IngestionResult], status_code=status.HTTP_201_CREATED)
@@ -90,6 +74,37 @@ async def upload_documents(
             shutil.rmtree(temp_dir, ignore_errors=True)
         except Exception:
             pass
+
+
+# NOTE: /{document_id}/chunks MUST come before /{document_id} so FastAPI
+# doesn't accidentally treat "chunks" as a document_id value.
+@router.get("/{document_id}/chunks")
+def get_document_chunks(
+    document_id: str,
+    x_user_id: str | None = Header(None, alias="x-user-id"),
+):
+    """Return all indexed chunks for a document, ordered by chunk_index."""
+    user_id = x_user_id or settings.DEFAULT_USER_ID
+    qdrant = QdrantService()
+    chunks = qdrant.get_document_chunks(document_id=document_id, user_id=user_id)
+    return chunks
+
+
+@router.get("/{document_id}", response_model=Document)
+def get_document(
+    document_id: str,
+    x_user_id: str | None = Header(None, alias="x-user-id"),
+):
+    """Get metadata for a specific document."""
+    user_id = x_user_id or settings.DEFAULT_USER_ID
+    service = get_document_service()
+    doc = service.get_document(document_id, user_id)
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document with ID '{document_id}' was not found.",
+        )
+    return doc
 
 
 @router.delete("/{document_id}")
