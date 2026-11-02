@@ -31,6 +31,8 @@ class DocumentChunk(BaseModel):
     chunk_index: int
     text: str
     page_number: int | None = None
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 class QdrantPayload(BaseModel):
@@ -40,6 +42,8 @@ class QdrantPayload(BaseModel):
     chunk_id: str
     chunk_index: int
     page_number: int | None = None
+    page_start: int | None = None
+    page_end: int | None = None
     text: str
 
 

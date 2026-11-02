@@ -39,6 +39,8 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
+    citations: list[dict[str, Any]] = Field(default_factory=list)
+    retrieved_chunks: list[dict[str, Any]] = Field(default_factory=list)
     sources: list[dict[str, Any]] = Field(default_factory=list)
     chunks: list[dict[str, Any]] = Field(default_factory=list)
     query: str
@@ -288,8 +290,17 @@ def chat_query(
             for source in getattr(retrieved_context, "sources", [])
         ]
 
+        citations = gen_result.get("citations", []) if isinstance(gen_result, dict) else []
+        retrieved_chunks = (
+            gen_result.get("retrieved_chunks", [])
+            if isinstance(gen_result, dict) and gen_result.get("retrieved_chunks")
+            else formatted_chunks
+        )
+
         return ChatResponse(
             answer=gen_result.get("answer", "") if isinstance(gen_result, dict) else getattr(gen_result, "answer", ""),
+            citations=citations,
+            retrieved_chunks=retrieved_chunks,
             sources=formatted_sources,
             chunks=formatted_chunks,
             query=cleaned_question,

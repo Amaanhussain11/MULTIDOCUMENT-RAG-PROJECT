@@ -52,3 +52,27 @@ def test_create_chunks_large_1000_line_document():
     for idx, c in enumerate(chunks):
         assert c.chunk_index == idx
         assert c.document_id == "doc_large"
+        assert c.page_start == 1
+        assert c.page_end == 1
+
+
+def test_create_chunks_spans_multiple_pages():
+    # Two short pages that merge into a single chunk under chunk_size=200
+    pages = [
+        ParsedPage(page_number=4, text="Short statement on page four."),
+        ParsedPage(page_number=5, text="Continuation on page five."),
+    ]
+    chunks = create_chunks(
+        pages=pages,
+        document_id="doc_multipage",
+        user_id="user_test",
+        chunk_size=200,
+        chunk_overlap=20,
+    )
+    assert len(chunks) == 1
+    chunk = chunks[0]
+    assert chunk.page_start == 4
+    assert chunk.page_end == 5
+    assert chunk.page_number == 4
+    assert "page four" in chunk.text
+    assert "page five" in chunk.text

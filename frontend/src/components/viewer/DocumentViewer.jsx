@@ -19,63 +19,6 @@ import {
 import { Button } from "../ui/Button";
 import { cn } from "../../utils/cn";
 
-// Rich simulated page content for indexed documents to demonstrate realistic document reading & highlighting
-const DOCUMENT_PAGES = {
-  "Annual_AI_Research_Report_2026.pdf": {
-    totalPages: 28,
-    pages: {
-      14: {
-        title: "Section 4.2 - Grounded Generation & Factuality Verification",
-        paragraphs: [
-          "In modern multi-document retrieval architectures, minimizing hallucinations requires strict context filtering before prompt injection into Gemini 3.7 Flash.",
-          "Grounded generation verifies all factual claims against top-k retrieved semantic chunks before returning final synthesis to the user. Every chunk retains immutable provenance including document identifier and 1-indexed page coordinates.",
-          "When contradictory claims are retrieved across multiple heterogeneous documents, the generation pipeline synthesizes both viewpoints while attributing explicit source markers to each respective claim.",
-          "Evaluation across 5,000 corporate documents demonstrated a 99.4% precision rate when bounded retrieval thresholds of 0.78 cosine similarity were enforced.",
-        ],
-        highlightedText:
-          "Grounded generation verifies all factual claims against top-k retrieved semantic chunks before returning final synthesis to the user.",
-      },
-      15: {
-        title: "Section 4.3 - Bounded Concurrency & Embedding Ingestion",
-        paragraphs: [
-          "Ingesting heterogeneous corpora of PDF, DOCX, and TXT files requires resilient rate-limiting mechanisms.",
-          "During initial file parsing, token windows are chunked into 800 to 1200 tokens with a 150-token sliding overlap to preserve cross-boundary semantics.",
-          "Batched vectors are asynchronously streamed to Qdrant with tenant-level isolation filters, safeguarding private data boundaries across multi-user environments.",
-        ],
-        highlightedText: null,
-      },
-    },
-  },
-  "Engineering_System_Architecture.docx": {
-    totalPages: 12,
-    pages: {
-      3: {
-        title: "3. Microservice Orchestration & Worker Concurrency",
-        paragraphs: [
-          "The backend service layer is built on Python and FastAPI, delegating compute-intensive tasks to asynchronous worker pools.",
-          "Bounded asynchronous concurrency is enforced with worker pools to avoid API rate limiting during batch document ingestion. Workers parse documents concurrently while enforcing system backpressure.",
-          "All API contracts under /api/v1 provide strict Pydantic model validation and normalized error formats.",
-        ],
-        highlightedText:
-          "Bounded asynchronous concurrency is enforced with worker pools to avoid API rate limiting during batch document ingestion.",
-      },
-    },
-  },
-  "Meeting_Executive_Summary.txt": {
-    totalPages: 4,
-    pages: {
-      1: {
-        title: "Executive Summary - Q3 Planning",
-        paragraphs: [
-          "Meeting attendees confirmed priority roadmap milestones for the RAG service platform.",
-          "Key priorities include user/document isolation in Qdrant, sub-second vector search latency, and interactive citation highlighting in the frontend UI.",
-        ],
-        highlightedText: null,
-      },
-    },
-  },
-};
-
 export function DocumentViewer({
   selectedDocName,
   initialPage = 1,
@@ -109,22 +52,40 @@ export function DocumentViewer({
     }
   }, [currentPage, highlightedChunk]);
 
-  const docData = DOCUMENT_PAGES[selectedDocName] || {
-    totalPages: 24,
-    pages: {},
-  };
+  if (!selectedDocName) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center h-full p-8 text-center bg-[#0F1014] border-l border-border",
+          className
+        )}
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 text-primary mb-3">
+          <FileText className="h-6 w-6" />
+        </div>
+        <h3 className="text-sm font-semibold text-text-primary mb-1">
+          No Document Selected
+        </h3>
+        <p className="text-xs text-text-muted max-w-xs leading-relaxed">
+          Upload a document or select an indexed document from the sidebar to inspect its pages and retrieved citations.
+        </p>
+      </div>
+    );
+  }
 
-  const totalPages = docData.totalPages || 20;
+  const totalPages = Math.max(currentPage, 1);
 
-  // Retrieve or generate fallback page content
-  const pageData = docData.pages[currentPage] || {
-    title: `Document Content - Page ${currentPage}`,
-    paragraphs: [
-      `This is the rendered text extracted from ${selectedDocName || "Document"} on page ${currentPage}.`,
-      highlightedChunk ||
-        "The retrieval pipeline parses text chunks from this document page and provides semantic vectors for Qdrant indexation.",
-      "All citations are mapped directly to corresponding page numbers, giving users full transparency into verified sources.",
-    ],
+  const pageData = {
+    title: `${selectedDocName} • Page ${currentPage}`,
+    paragraphs: highlightedChunk
+      ? [
+          highlightedChunk,
+          "All citations are mapped directly to corresponding page numbers, giving users full transparency into verified sources.",
+        ]
+      : [
+          `Viewing verified extracted text from ${selectedDocName}.`,
+          "Select a citation or chunk from the chat to jump directly to the supporting passage on this page.",
+        ],
     highlightedText: highlightedChunk,
   };
 

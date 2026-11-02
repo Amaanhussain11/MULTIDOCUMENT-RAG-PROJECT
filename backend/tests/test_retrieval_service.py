@@ -1,9 +1,13 @@
 """Unit and integration tests for the RetrievalService and query pipeline."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from backend.app.schemas.document import DocumentChunk
+from backend.app.schemas.query import ConstructedContext, RetrievedChunk
 from backend.app.services.embedding_service import EmbeddingService
+from backend.app.services.generation_service import GenerationService
 from backend.app.services.qdrant_service import QdrantService
 from backend.app.services.retrieval_service import RetrievalService
 
@@ -217,8 +221,95 @@ def test_context_construction_format(test_setup):
         similarity_threshold=0.1,
     )
 
-    # Check exact formatting: [doc_name | Page X]
-    assert "[guide.pdf | Page 12]" in context.formatted_text
+    # Check exact formatting: SOURCE [S...] (Document: guide.pdf | Page: 12)
+    assert "(Document: guide.pdf | Page: 12)" in context.formatted_text
+    assert "SOURCE [S1]" in context.formatted_text
+    assert "SOURCE [S2]" in context.formatted_text
     assert "This is page 12 content." in context.formatted_text
     assert len(context.sources) >= 1
     assert context.sources[0].document == "guide.pdf"
+    assert context.sources[0].source_id in {"S1", "S2"}
+
+
+def test_context_construction_multipage_format(test_setup):
+    qdrant, _, retrieval, vec_a, _, _ = test_setup
+    chunk = DocumentChunk(
+        chunk_id="c_multi",
+        document_id="doc_multi",
+        user_id="user_format",
+        chunk_index=0,
+        text="Content spanning pages 4 to 6.",
+        page_number=4,
+        page_start=4,
+        page_end=6,
+    )
+    qdrant.upsert_chunks([chunk], [vec_a], document_name="manual.pdf")
+
+    context = retrieval.retrieve_context(
+        question="Multipage check",
+        user_id="user_format",
+        similarity_threshold=0.1,
+    )
+    assert "SOURCE [S1] (Document: manual.pdf | Pages: 4-6)" in context.formatted_text
+
+
+def test_citation_mapping_and_hallucination_discard(test_setup):
+    _, _, retrieval, _, _, _ = test_setup
+
+    chunks = [
+        RetrievedChunk(
+            chunk_id="c1",
+            document_id="doc1",
+            document_name="file1.pdf",
+            chunk_index=0,
+            page_number=2,
+            page_start=2,
+            page_end=2,
+            source_id="S1",
+            text="First chunk exact text.",
+            score=0.92,
+        ),
+        RetrievedChunk(
+            chunk_id="c2",
+            document_id="doc2",
+            document_name="file2.pdf",
+            chunk_index=1,
+            page_number=8,
+            page_start=8,
+            page_end=9,
+            source_id="S2",
+            text="Second chunk exact text.",
+            score=0.88,
+        ),
+    ]
+
+    context = ConstructedContext(
+        formatted_text="SOURCE [S1] ... \nSOURCE [S2] ...",
+        chunks=chunks,
+        sources=[],
+        question="What are the details?",
+    )
+
+    gen_service = GenerationService(api_key="mock_key")
+    # Mock Gemini client response: cites [S1] and hallucinated [S9]
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.text = "Based on research, facts are established [S1]. An unverified claim [S9]."
+    mock_client.models.generate_content.return_value = mock_response
+    gen_service._client = mock_client
+
+    result = gen_service.generate_answer("What are the details?", context)
+
+    # Citations must include S1 and strictly reject S9
+    assert len(result["citations"]) == 1
+    c1 = result["citations"][0]
+    assert c1["source_id"] == "S1"
+    assert c1["document_name"] == "file1.pdf"
+    assert c1["page_number"] == 2
+    assert c1["text"] == "First chunk exact text."
+    assert c1["score"] == 0.92
+
+    # Top retrieved chunks must return all 2 chunks
+    assert len(result["retrieved_chunks"]) == 2
+    assert result["retrieved_chunks"][0]["source_id"] == "S1"
+    assert result["retrieved_chunks"][1]["source_id"] == "S2"

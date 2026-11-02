@@ -91,7 +91,10 @@ def create_chunks(
         # Create chunk from units[start_idx:end_idx]
         chunk_units = units[start_idx:end_idx]
         chunk_text = " ".join(u["text"] for u in chunk_units)
-        page_number = chunk_units[0]["page_number"]
+        page_numbers = [u["page_number"] for u in chunk_units if u.get("page_number") is not None]
+        page_start = min(page_numbers) if page_numbers else None
+        page_end = max(page_numbers) if page_numbers else None
+        page_number = page_start
         chunk_id = f"{document_id}_c{chunk_index}"
 
         chunks.append(DocumentChunk(
@@ -100,7 +103,9 @@ def create_chunks(
             user_id=user_id,
             chunk_index=chunk_index,
             text=chunk_text,
-            page_number=page_number
+            page_number=page_number,
+            page_start=page_start,
+            page_end=page_end,
         ))
         chunk_index += 1
 

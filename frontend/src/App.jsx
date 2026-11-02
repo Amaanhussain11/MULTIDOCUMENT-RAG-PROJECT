@@ -36,10 +36,8 @@ export function App() {
 
   // Active document & citation selection for the Document Viewer
   const [selectedDoc, setSelectedDoc] = useState(null);
-  const [viewerPage, setViewerPage] = useState(14);
-  const [highlightedChunk, setHighlightedChunk] = useState(
-    "Grounded generation verifies all factual claims against top-k retrieved semantic chunks before returning final synthesis to the user."
-  );
+  const [viewerPage, setViewerPage] = useState(1);
+  const [highlightedChunk, setHighlightedChunk] = useState(null);
 
   // Set default selected document once documents load
   React.useEffect(() => {
@@ -77,25 +75,28 @@ export function App() {
     isLoading: isChatLoading,
     error: chatError,
     sendMessage,
-  } = useChat(isBackendConnected);
+  } = useChat(isBackendConnected, documents);
 
   const readyDocumentsCount = documents.filter((d) => d.status === "READY").length;
 
-  // Handler when user clicks a citation pill [1] in the chat response
+  // Handler when user clicks a citation pill [S1] or card in the chat response
   const handleCitationClick = (source) => {
-    // Find matching document or use source document name
-    const foundDoc = documents.find((d) => d.document_name === source.document);
+    const docName = source.document_name || source.document;
+    const page = source.page_number || source.page || source.page_start || 1;
+    const text = source.text || source.chunk_text || "";
+
+    const foundDoc = documents.find((d) => d.document_name === docName);
     if (foundDoc) {
       setSelectedDoc(foundDoc);
     } else {
       setSelectedDoc({
-        document_id: "cited_doc",
-        document_name: source.document,
+        document_id: source.document_id || "cited_doc",
+        document_name: docName,
       });
     }
 
-    setViewerPage(source.page || 1);
-    setHighlightedChunk(source.chunk_text || "");
+    setViewerPage(page);
+    setHighlightedChunk(text);
     setIsViewerOpen(true); // Ensure right panel is visible
   };
 
