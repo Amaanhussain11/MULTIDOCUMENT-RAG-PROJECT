@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # Concurrency and batching
     MAX_EMBEDDING_CONCURRENCY: int = 5
-    EMBEDDING_BATCH_SIZE: int = 20
+    EMBEDDING_BATCH_SIZE: int = 10
 
     # User & API defaults
     DEFAULT_USER_ID: str = "default_user"
