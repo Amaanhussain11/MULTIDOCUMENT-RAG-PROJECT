@@ -11,6 +11,9 @@ class RetrievedChunk(BaseModel):
     document_name: str
     chunk_index: int
     page_number: int | None = None
+    page_start: int | None = None
+    page_end: int | None = None
+    source_id: str | None = None
     text: str
     score: float
 
@@ -20,6 +23,22 @@ class SourceReference(BaseModel):
     document: str
     page: int | None = None
     score: float
+    source_id: str | None = None
+    chunk_text: str | None = None
+
+
+class Citation(BaseModel):
+    """Represents a verified grounded citation supporting an answer claim."""
+    source_id: str
+    document_id: str
+    document_name: str
+    page_number: int | None = None
+    page_start: int | None = None
+    page_end: int | None = None
+    chunk_id: str
+    chunk_index: int
+    text: str
+    score: float = 0.0
 
 
 class ConstructedContext(BaseModel):
@@ -41,8 +60,10 @@ class QueryRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
-    """Response returned by the /api/v1/chat endpoint including top-k retrieved chunks."""
+    """Response returned by the /api/v1/chat endpoint including top-k retrieved chunks and grounded citations."""
     answer: str
+    citations: list[Citation] = Field(default_factory=list)
+    retrieved_chunks: list[RetrievedChunk] = Field(default_factory=list)
     sources: list[SourceReference] = Field(default_factory=list)
     chunks: list[RetrievedChunk] = Field(default_factory=list)
     question: str | None = None

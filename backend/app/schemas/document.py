@@ -20,6 +20,7 @@ class Document(BaseModel):
     file_type: str
     file_size: int
     status: DocumentStatus = DocumentStatus.QUEUED
+    error: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -31,6 +32,8 @@ class DocumentChunk(BaseModel):
     chunk_index: int
     text: str
     page_number: int | None = None
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 class QdrantPayload(BaseModel):
@@ -40,6 +43,8 @@ class QdrantPayload(BaseModel):
     chunk_id: str
     chunk_index: int
     page_number: int | None = None
+    page_start: int | None = None
+    page_end: int | None = None
     text: str
 
 

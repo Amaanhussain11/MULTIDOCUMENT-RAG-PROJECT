@@ -32,6 +32,8 @@ export function useChat(isBackendConnected = true, documents = []) {
           updated[updated.length - 1] = {
             role: "assistant",
             content: response.answer,
+            citations: response.citations || [],
+            retrieved_chunks: response.retrieved_chunks || response.chunks || [],
             sources: response.sources || [],
             chunks: response.chunks || [],
             isLoading: false,
@@ -39,39 +41,37 @@ export function useChat(isBackendConnected = true, documents = []) {
           return updated;
         });
       } else {
-        // Dynamic simulation for demo preview: Top 5 retrieved chunks from user's active documents
-        await new Promise((resolve) => setTimeout(resolve, 1100));
+        await new Promise((resolve) => setTimeout(resolve, 800));
 
-        // Use the documents currently in the user's workspace/sidebar
-        const activeDocs =
-          documents && documents.length > 0
-            ? documents
-            : [
-                { document_id: "doc_101", document_name: "Annual_AI_Research_Report_2026.pdf" },
-                { document_id: "doc_102", document_name: "Engineering_System_Architecture.docx" },
-                { document_id: "doc_103", document_name: "Meeting_Executive_Summary.txt" },
-              ];
+        // When offline or disconnected without documents, provide clear notice without fake docs
+        if (!documents || documents.length === 0) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              role: "assistant",
+              content:
+                "Backend server is disconnected or no documents have been indexed yet. Please upload documents to begin querying.",
+              citations: [],
+              retrieved_chunks: [],
+              sources: [],
+              chunks: [],
+              isLoading: false,
+            };
+            return updated;
+          });
+          return;
+        }
 
-        // Generate top 5 chunks distributed across the user's actual documents
+        // If user has local in-memory documents
+        const activeDocs = documents;
         const top5Chunks = [];
-        const totalTopK = 5;
+        const totalTopK = Math.min(5, activeDocs.length * 2);
 
         for (let i = 0; i < totalTopK; i++) {
           const doc = activeDocs[i % activeDocs.length];
-          const pageNum = ((i * 3 + 1) % 18) + 1;
+          const pageNum = i + 1;
           const score = Number((0.95 - i * 0.045).toFixed(3));
-
-          let textSnippet = "";
-          const qLower = question.toLowerCase();
-          if (qLower.includes("about") || qLower.includes("what")) {
-            textSnippet = `Document '${doc.document_name}' defines core specifications, operational parameters, and structural design on page ${pageNum}. It establishes verified standards for query processing and content evaluation.`;
-          } else if (qLower.includes("conclu") || qLower.includes("summary")) {
-            textSnippet = `Summary excerpt from '${doc.document_name}' (Page ${pageNum}): Key findings confirm that bounded asynchronous execution and semantic context filtering deliver 99.4% precision.`;
-          } else if (qLower.includes("how") || qLower.includes("method")) {
-            textSnippet = `Methodology excerpt from '${doc.document_name}' (Page ${pageNum}): Workflows process raw inputs into clean token windows, generating vector embeddings and applying cosine thresholds before LLM synthesis.`;
-          } else {
-            textSnippet = `Relevant semantic passage extracted from '${doc.document_name}' on Page ${pageNum}: Addressed specifically to '${question}'. Cross-document consistency verified across all retrieved chunks.`;
-          }
+          const sourceId = `S${i + 1}`;
 
           top5Chunks.push({
             chunk_id: `chunk_${doc.document_id || "doc"}_${i + 1}`,
@@ -79,37 +79,42 @@ export function useChat(isBackendConnected = true, documents = []) {
             document_name: doc.document_name,
             chunk_index: i,
             page_number: pageNum,
+            page_start: pageNum,
+            page_end: pageNum,
             score: score,
-            text: textSnippet,
+            source_id: sourceId,
+            text: `Relevant semantic excerpt extracted from ${doc.document_name} regarding "${question}".`,
           });
         }
 
-        const distinctDocs = Array.from(new Set(top5Chunks.map((c) => c.document_name)));
-        const synthesisContent =
-          `Based on your ${distinctDocs.length} indexed documents (${distinctDocs.join(", ")}), here is the grounded synthesis regarding "${question}":\n\n` +
-          distinctDocs
-            .map((docName, idx) => {
-              const docChunk = top5Chunks.find((c) => c.document_name === docName);
-              return `${idx + 1}. **${docName}** (Page ${docChunk?.page_number || 1}): ${docChunk?.text}`;
-            })
-            .join("\n\n") +
-          `\n\nClaims are grounded across the top ${top5Chunks.length} semantic chunks retrieved across your multi-document corpus.`;
-
-        const sources = distinctDocs.map((docName) => {
-          const matchingChunk = top5Chunks.find((c) => c.document_name === docName);
-          return {
-            document: docName,
-            page: matchingChunk?.page_number || 1,
-            chunk_text: matchingChunk?.text || "",
-          };
-        });
+        const synthesisContent = `Based on your uploaded documents, here is the information regarding "${question}" [S1].`;
+        const citations = top5Chunks.slice(0, 1).map((c) => ({
+          source_id: c.source_id,
+          document_id: c.document_id,
+          document_name: c.document_name,
+          page_number: c.page_number,
+          page_start: c.page_start,
+          page_end: c.page_end,
+          chunk_id: c.chunk_id,
+          chunk_index: c.chunk_index,
+          text: c.text,
+          score: c.score,
+        }));
 
         setMessages((prev) => {
           const updated = [...prev];
           updated[updated.length - 1] = {
             role: "assistant",
             content: synthesisContent,
-            sources: sources,
+            citations: citations,
+            retrieved_chunks: top5Chunks,
+            sources: citations.map((c) => ({
+              document: c.document_name,
+              page: c.page_number,
+              score: c.score,
+              source_id: c.source_id,
+              chunk_text: c.text,
+            })),
             chunks: top5Chunks,
             isLoading: false,
           };

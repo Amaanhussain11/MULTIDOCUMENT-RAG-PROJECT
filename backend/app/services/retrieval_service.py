@@ -137,10 +137,10 @@ class RetrievalService:
         """
         Convert retrieved chunks into structured context adhering to Section 5.8:
 
-        [research.pdf | Page 12]
+        SOURCE [S1] (Document: research.pdf | Page: 12)
         <chunk text>
 
-        [notes.docx | Page 4]
+        SOURCE [S2] (Document: notes.docx | Page: 4)
         <chunk text>
         """
         if not chunks:
@@ -148,29 +148,32 @@ class RetrievalService:
 
         context_blocks: list[str] = []
         sources: list[SourceReference] = []
-        seen_sources = set()
 
-        for chunk in chunks:
-            # Build header: [doc_name | Page X] or [doc_name]
-            if chunk.page_number is not None:
-                header = f"[{chunk.document_name} | Page {chunk.page_number}]"
+        for idx, chunk in enumerate(chunks):
+            source_id = f"S{idx + 1}"
+            chunk.source_id = source_id
+
+            # Determine page description (single page vs multi-page range)
+            if chunk.page_start is not None and chunk.page_end is not None and chunk.page_start != chunk.page_end:
+                page_desc = f" | Pages: {chunk.page_start}-{chunk.page_end}"
+            elif chunk.page_number is not None:
+                page_desc = f" | Page: {chunk.page_number}"
             else:
-                header = f"[{chunk.document_name}]"
+                page_desc = ""
 
+            header = f"SOURCE [{source_id}] (Document: {chunk.document_name}{page_desc})"
             block = f"{header}\n{chunk.text.strip()}"
             context_blocks.append(block)
 
-            # Record unique sources for citation
-            source_key = (chunk.document_name, chunk.page_number)
-            if source_key not in seen_sources:
-                seen_sources.add(source_key)
-                sources.append(
-                    SourceReference(
-                        document=chunk.document_name,
-                        page=chunk.page_number,
-                        score=round(chunk.score, 4),
-                    )
+            sources.append(
+                SourceReference(
+                    document=chunk.document_name,
+                    page=chunk.page_number,
+                    score=round(chunk.score, 4),
+                    source_id=source_id,
+                    chunk_text=chunk.text,
                 )
+            )
 
         formatted_text = "\n\n".join(context_blocks)
         return formatted_text, sources

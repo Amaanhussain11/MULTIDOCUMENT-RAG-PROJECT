@@ -57,6 +57,7 @@ class MetadataStore:
         document_id: str,
         user_id: str,
         status: DocumentStatus,
+        error: str | None = None,
     ) -> Document | None:
         with self._lock:
             data = self._load_all()
@@ -64,6 +65,8 @@ class MetadataStore:
             if not doc_data or doc_data.get("user_id") != user_id:
                 return None
             doc_data["status"] = status.value if hasattr(status, "value") else str(status)
+            if error is not None:
+                doc_data["error"] = error
             doc_data["updated_at"] = datetime.now(UTC).isoformat()
             data[document_id] = doc_data
             self._save_all(data)

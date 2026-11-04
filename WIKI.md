@@ -91,7 +91,7 @@ The platform follows a decoupled, service-oriented architecture:
    - Validates file size (max 25MB by default).
    - Inspects file extension and verifies binary file signatures (magic bytes) to prevent extension spoofing (e.g. verifying `%PDF-` signature).
 2. **Text Parsing (`backend/app/parsers/`):**
-   - **PDF Parser:** Uses `pypdf` to extract text while maintaining individual page boundaries.
+   - **PDF Parser:** Uses PyMuPDF (`fitz` interface) to extract clean text page-by-page while completely bypassing embedded images and DCT streams. Automatically detects scanned or image-only documents and surfaces an explicit `OCR_REQUIRED` error. Enforces strict error handling on password-protected (`PASSWORD_PROTECTED_PDF`) and corrupted files (`CORRUPT_OR_INVALID_PDF`).
    - **DOCX Parser:** Uses `python-docx` to extract structural paragraphs and headings.
    - **TXT Parser:** Reads utf-8 text with automatic fallback for ISO-8859/Windows-1252 encodings.
 3. **Text Cleaning (`backend/app/utils/cleaner.py`):**
@@ -100,24 +100,28 @@ The platform follows a decoupled, service-oriented architecture:
    - Collapses irregular whitespace and redundant empty newlines.
 4. **Token-Aware Chunking (`backend/app/utils/chunker.py`):**
    - Utilizes `tiktoken` (Cl100k tokenizer) to slice documents into target windows of 800–1200 tokens with 150 tokens of overlap.
-   - Preserves source metadata (page numbers, chunk index, document ID).
+   - Preserves source metadata: `page_number`, `page_start`, `page_end`, `chunk_index`, and `document_id`. Multi-page chunks accurately preserve their full page range.
 5. **Vector Embedding (`backend/app/services/embedding_service.py`):**
    - Generates 768-dimensional dense vectors using Google Gemini `gemini-embedding-001`.
    - Embeds chunks in concurrency-throttled batches (configurable batch size).
 6. **Vector Upsert (`backend/app/services/qdrant_service.py`):**
    - Upserts points into Qdrant using deterministic UUIDs (`uuid.uuid5` based on `chunk_id`) for idempotent re-runs.
-   - Embeds payload metadata: `user_id`, `document_id`, `document_name`, `page_number`, `chunk_index`, and raw `text`.
+   - Embeds payload metadata: `user_id`, `document_id`, `document_name`, `page_number`, `page_start`, `page_end`, `chunk_index`, and raw `text`.
 
 ### 3.2 Semantic Retrieval & Grounded Generation
 
 1. **Query Vectorization:** The incoming query is embedded using `gemini-embedding-001`.
 2. **Filtered Top-K Search:**
-   - Filters by `user_id` (mandatory) and optional `document_id` filter.
+   - Filters by `user_id` (mandatory) and optional `document_id` / `document_ids` filter.
    - Retrieves top $K=5$ most similar chunks with cosine similarity $\ge 0.50$.
 3. **Context Construction (`backend/app/services/retrieval_service.py`):**
-   - Combines retrieved chunks with clear separation markers:
-     `[Source: filename.pdf | Page: 3 | Relevance: 0.89]`
-4. **Grounded Generation (`backend/app/services/generation_service.py`):**
+   - Labels each retrieved candidate chunk with a stable identifier: `[S1]`, `[S2]`, etc.
+   - Formats chunk blocks clearly:
+     `SOURCE [S1] (Document: filename.pdf | Page: 3)` or `Pages: 3-4`
+4. **Grounded Generation & Citation Resolution (`backend/app/services/generation_service.py`):**
+   - Prompts Gemini (`gemini-3.7-flash` / `gemini-3.6-flash` / `gemini-3.5-flash-lite`) under low temperature ($0.2$) with strict system instructions to cite claims using bracketed source tags (e.g. `[S1]`).
+   - Server-side regex parses cited tags from the answer and verifies them against an immutable `source_map`. Any hallucinated or invalid source IDs are discarded.
+   - Returns structured `citations` (with verbatim chunk text, document name, page, score) and `retrieved_chunks` (all top 5 candidates).
    - Prompts Gemini with strict system instructions: *Answer solely based on the provided context. If the answer is not contained in the context, explicitly state that.*
    - Automatically attempts failover to secondary model tiers (`3.6-flash`, `3.7-flash`) in the event of transient upstream demand spikes.
    - Attaches structured citation metadata containing document IDs, page references, and similarity scores.
