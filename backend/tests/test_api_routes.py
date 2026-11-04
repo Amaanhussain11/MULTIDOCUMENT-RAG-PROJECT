@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.core.config import settings
 from backend.app.main import app
-from backend.app.schemas.document import Document, DocumentStatus, IngestionResult
+from backend.app.schemas.document import Document, DocumentStatus
 from backend.app.schemas.query import ConstructedContext, RetrievedChunk, SourceReference
 from backend.app.services.document_service import DocumentService
 from backend.app.services.generation_service import GenerationService
@@ -97,16 +97,6 @@ def test_get_document_found_and_not_found(client):
 def test_upload_documents_success(client):
     test_client, mock_service, _ = client
 
-    mock_result = IngestionResult(
-        document_id="doc_test_1",
-        document_name="notes.txt",
-        user_id=settings.DEFAULT_USER_ID,
-        status=DocumentStatus.READY,
-        chunk_count=2,
-        total_tokens=150,
-    )
-    mock_service.ingest_files.return_value = [mock_result]
-
     files = [
         ("files", ("notes.txt", io.BytesIO(b"Important notes content for RAG testing."), "text/plain"))
     ]
@@ -115,8 +105,15 @@ def test_upload_documents_success(client):
     assert response.status_code == 201
     results = response.json()
     assert len(results) == 1
-    assert results[0]["document_id"] == "doc_test_1"
-    assert results[0]["status"] == "READY"
+    assert results[0]["document_name"] == "notes.txt"
+    assert results[0]["document_id"].startswith("doc_")
+    assert results[0]["status"] == "PROCESSING"
+
+    # Verify background task dispatched ingest_file with matching document_id
+    mock_service.ingest_file.assert_called_once()
+    call_kwargs = mock_service.ingest_file.call_args[1]
+    assert call_kwargs["document_id"] == results[0]["document_id"]
+    assert call_kwargs["user_id"] == settings.DEFAULT_USER_ID
 
 
 def test_delete_document_success_and_not_found(client):
